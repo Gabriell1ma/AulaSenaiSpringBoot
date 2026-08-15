@@ -8,6 +8,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.net.URI;
 
 @RestController
 @RequestMapping("/instrutores")
@@ -18,42 +21,52 @@ public class InstrutorController {
 
     @PostMapping
     @Transactional
-    public void cadastrarInstrutor(
-            @RequestBody @Valid DadosCadastroInstrutor dados) {
-
-        Instrutor instrutor = new Instrutor(dados);
-        repository.save(instrutor);
+    public ResponseEntity<DadosDetalhamentoInstrutor> cadastrarInstrutor(
+            @RequestBody @Valid DadosCadastroInstrutor dados,
+            UriComponentsBuilder uriBuider) {
+        var instrutor = new Instrutor(dados);
+        Instrutor salvo = repository.save(instrutor);
+        var dto = new DadosDetalhamentoInstrutor(salvo);
+        URI uri = uriBuider
+                .path("/instrutores/{id}")
+                .buildAndExpand(dto.id())
+                .toUri();
+        return ResponseEntity.created(uri).body(dto);
     }
 
     @GetMapping
     @Transactional(readOnly = true)
-    public ResponseEntity<Page<DadosListagemInstrutor>>istarInstrutores(Pageable paginacao    ) {
+    public ResponseEntity<Page<DadosListagemInstrutor>> listarInstrutores(Pageable paginacao) {
         Page page = repository
                 .findAllByAtivoTrue(paginacao)
                 .map(DadosListagemInstrutor::new);
         return ResponseEntity.ok(page);
     }
+
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
-    public DadosDetalhamentoInstrutor detalharInstrutor(@PathVariable Long id){
+    public ResponseEntity<DadosDetalhamentoInstrutor> detalharInstrutor(@PathVariable Long id) {
         Instrutor instrutor = repository.getReferenceById(id);
-        return new DadosDetalhamentoInstrutor(instrutor);
+        var dto = new DadosDetalhamentoInstrutor(instrutor);
+        return ResponseEntity.ok(dto);
     }
 
     @PutMapping
     @Transactional
-    public void atualizarInstrutor(
+    public ResponseEntity<DadosDetalhamentoInstrutor> atualizarInstrutor(
             @RequestBody @Valid DadosAtualizacaoInstrutor dados) {
-
         Instrutor instrutor = repository.getReferenceById(dados.id());
-
         instrutor.atualizar(dados);
+        var dto = new DadosDetalhamentoInstrutor(instrutor);
+        return ResponseEntity.ok(dto);
     }
 
     @DeleteMapping("/id")
     @Transactional
-    public void excluirInstrutor(@PathVariable Long id){
+    public ResponseEntity<Void> excluirInstrutor(@PathVariable Long id) {
         Instrutor instrutor = repository.getReferenceById(id);
-        repository.deleteById(id);
+        instrutor.excluir();
+        repository.save(instrutor);
+        return ResponseEntity.noContent().build();
     }
 }
